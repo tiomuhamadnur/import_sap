@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     record_error_sample: int = 500
 
     bootstrap_admin_username: str = "admin"
+    bootstrap_admin_email: str = "admin@mrtjakarta.co.id"
     bootstrap_admin_password: str = "admin123"
 
     backup_retention_days: int = 14

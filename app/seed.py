@@ -13,15 +13,15 @@ def ensure_admin(db) -> User | None:
     existing = db.scalar(select(User).limit(1))
     if existing is not None:
         return None
-        admin = User(
-            username=settings.bootstrap_admin_username,
-            name="Administrator",
-            email=settings.bootstrap_admin_email or "admin@mrtjakarta.co.id",
-            password_hash=hash_password(settings.bootstrap_admin_password),
-            role="admin",
-            is_active=True,
-            must_change_password=True,
-        )
+    admin = User(
+        username=settings.bootstrap_admin_username,
+        name="Administrator",
+        email=settings.bootstrap_admin_email or "admin@mrtjakarta.co.id",
+        password_hash=hash_password(settings.bootstrap_admin_password),
+        role="admin",
+        is_active=True,
+        must_change_password=True,
+    )
     db.add(admin)
     db.commit()
     return admin
