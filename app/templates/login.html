@@ -1,0 +1,59 @@
+{% import "_macros.html" as m %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — Import SAP</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <style>[x-cloak]{display:none !important}</style>
+</head>
+<body class="flex min-h-screen flex-col bg-slate-100 text-slate-900 antialiased">
+  <main class="flex flex-1 items-center justify-center p-6">
+    <div class="w-full max-w-sm" x-data="{ show: false }">
+      <div class="mb-6 flex flex-col items-center text-center">
+        <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm">
+          {{ m.icon("database", "h-6 w-6") }}
+        </span>
+        <h1 class="mt-4 text-xl font-semibold tracking-tight">Import SAP</h1>
+        <p class="mt-1 text-sm text-slate-500">Sign in to continue to your workspace.</p>
+      </div>
+
+      <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+        {% if error %}
+          <div class="mb-5">{{ m.alert("error", "Could not sign in", error) }}</div>
+        {% endif %}
+
+        <form method="post" action="/login" class="space-y-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div>
+            <label for="username" class="mb-1.5 block text-sm font-medium text-slate-700">Email or username</label>
+            <input id="username" name="username" autocomplete="username" required autofocus
+                   class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
+          </div>
+          <div>
+            <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700">Password</label>
+            <div class="relative">
+              <input id="password" name="password" :type="show ? 'text' : 'password'" autocomplete="current-password" required
+                     class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 pr-11 text-sm shadow-sm transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
+              <button type="button" @click="show = !show"
+                      class="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 hover:text-slate-600"
+                      :aria-label="show ? 'Hide password' : 'Show password'">
+                {{ m.icon("eye", "h-5 w-5") }}
+              </button>
+            </div>
+          </div>
+          <button type="submit"
+                  class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 focus:ring-2 focus:ring-indigo-200 focus:outline-none">
+            Sign in
+          </button>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <div class="px-6 pb-6">{{ m.credit("center") }}</div>
+  <script src="/static/vendor/alpine.min.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{% import "_macros.html" as m %}
+<div id="job-status"
+     {% if job.status not in terminal_statuses %}
+       hx-get="/import/{{ job.id }}/status" hx-trigger="every 2s" hx-swap="outerHTML"
+     {% endif %}
+     class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+  <div class="flex items-center justify-between">
+    <span class="text-sm font-medium text-slate-600">Status</span>
+    {{ m.status_badge(job.status) }}
+  </div>
+
+  <div class="mt-4 space-y-2">
+    {{ m.progress_bar(job.processed, job.total_rows) }}
+    <p class="text-xs text-slate-400">{{ job.processed|num }} / {{ job.total_rows|num }} rows processed</p>
+  </div>
+
+  <div class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+    {% set counts = [
+      ("Inserted", job.inserted, "sky", "plus"),
+      ("Updated", job.updated, "amber", "refresh"),
+      ("Skipped", job.skipped, "slate", "info"),
+      ("Failed", job.failed, "red", "warning"),
+    ] %}
+    {% for label, value, tone, icon_name in counts %}
+      {{ m.stat_card(label, value, tone, icon_name) }}
+    {% endfor %}
+  </div>
+
+  {% if job.error_summary and job.error_summary.error %}
+    <div class="mt-4">{{ m.alert("error", "Error", job.error_summary.error) }}</div>
+  {% endif %}
+  {% if job.error_summary and job.error_summary.rollback %}
+    <div class="mt-4 rounded-xl bg-purple-50 px-4 py-3 text-sm text-purple-700 ring-1 ring-inset ring-purple-200">
+      Rollback: {{ job.error_summary.rollback.undone|num }} undone, {{ job.error_summary.rollback.conflicts|num }} conflicts skipped.
+    </div>
+  {% endif %}
+</div>

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Profile — Import SAP{% endblock %}
+{% block breadcrumb %}Profile{% endblock %}
+{% block content %}
+{% set input_cls = "w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none" %}
+<div class="mx-auto max-w-3xl space-y-5">
+  <div>
+    <h2 class="text-xl font-semibold tracking-tight">My profile</h2>
+    <p class="mt-0.5 text-sm text-slate-500">Manage your account details and profile photo.</p>
+  </div>
+
+  {% if error %}{{ m.alert("error", "Could not save", error) }}{% endif %}
+  {% if info %}{{ m.alert("success", "", info) }}{% endif %}
+
+  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex flex-col gap-5 border-b border-slate-100 p-6 sm:flex-row sm:items-center" x-data="{ preview: null }">
+      <div class="relative shrink-0">
+        <template x-if="preview">
+          <img :src="preview" alt="" class="h-20 w-20 rounded-full object-cover ring-1 ring-slate-200">
+        </template>
+        <template x-if="!preview">
+          {{ m.avatar(user, "h-20 w-20", "text-2xl", "ring-1 ring-slate-200") }}
+        </template>
+      </div>
+      <div class="min-w-0 flex-1">
+        <h3 class="text-lg font-semibold text-slate-800">{{ user.name or user.username or user.email }}</h3>
+        <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+          {{ m.role_badge(user.role) }}
+          <span>{{ user.email or "—" }}</span>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-2">
+          <form method="post" action="/profile/avatar" enctype="multipart/form-data" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <input type="file" name="file" accept="image/*" required
+                   @change="const f = $event.target.files[0]; if (f) { const r = new FileReader(); r.onload = e => preview = e.target.result; r.readAsDataURL(f); }"
+                   class="cursor-pointer text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3.5 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-indigo-500">
+            <button type="submit" class="rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">Upload</button>
+          </form>
+          {% if user.avatar %}
+            <form method="post" action="/profile/avatar/remove">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+              <button type="submit" class="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">Remove photo</button>
+            </form>
+          {% endif %}
+        </div>
+        <p class="mt-2 text-xs text-slate-400">JPG, PNG, or GIF up to 1 MB. Images are resized and compressed automatically.</p>
+      </div>
+    </div>
+
+    <form method="post" action="/profile" class="space-y-4 p-6">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label for="name" class="mb-1.5 block text-sm font-medium text-slate-700">Full name</label>
+          <input id="name" name="name" value="{{ user.name or '' }}" required class="{{ input_cls }}">
+        </div>
+        <div>
+          <label for="email" class="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+          <input id="email" value="{{ user.email or '' }}" disabled
+                 class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-500">
+        </div>
+        <div>
+          <label for="username" class="mb-1.5 block text-sm font-medium text-slate-700">Username <span class="font-normal text-slate-400">(optional)</span></label>
+          <input id="username" name="username" value="{{ user.username or '' }}" class="{{ input_cls }}">
+        </div>
+        <div>
+          <label for="phone" class="mb-1.5 block text-sm font-medium text-slate-700">Phone <span class="font-normal text-slate-400">(optional)</span></label>
+          <input id="phone" name="phone" value="{{ user.phone or '' }}" class="{{ input_cls }}">
+        </div>
+        <div>
+          <label class="mb-1.5 block text-sm font-medium text-slate-700">Member since</label>
+          <input value="{{ user.created_at | wib }}" disabled
+                 class="w-full rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-500">
+        </div>
+      </div>
+      <div class="flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <a href="/change-password" class="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900">
+          {{ m.icon("key", "h-4 w-4 text-slate-400") }} Change password
+        </a>
+        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Save changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

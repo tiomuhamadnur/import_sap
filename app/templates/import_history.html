@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Import history — Import SAP{% endblock %}
+{% block breadcrumb %}Import History{% endblock %}
+{% block content %}
+{% set pages = (total + per_page - 1) // per_page if total else 1 %}
+{% set start = [1, page - 2]|max %}
+{% set end = [pages, start + 4]|min %}<!-- -->
+{% set base = "/import-history?page=" %}
+{% set suffix = ("&data_type=" ~ data_type if data_type else "") ~ ("&status=" ~ status if status else "") %}
+<div class="space-y-4">
+  <div>
+    <h2 class="text-xl font-semibold tracking-tight">Import history</h2>
+    <p class="mt-0.5 text-sm text-slate-500">{{ total|num }} session{{ '' if total == 1 else 's' }}</p>
+  </div>
+
+  <form method="get" action="/import-history" class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div class="flex flex-wrap items-end gap-3 text-sm">
+      <div>
+        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Data type</label>
+        <select name="data_type" class="rounded-lg border border-slate-300 px-3 py-2 pr-8 shadow-sm focus:border-indigo-500 focus:outline-none">
+          <option value="">All types</option>
+          {% for d in datasets %}
+            <option value="{{ d.value }}" {% if data_type == d.value %}selected{% endif %}>{{ d.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400">Status</label>
+        <select name="status" class="rounded-lg border border-slate-300 px-3 py-2 pr-8 shadow-sm focus:border-indigo-500 focus:outline-none">
+          <option value="">All statuses</option>
+          {% for s in statuses %}
+            <option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white shadow-sm hover:bg-indigo-500">Filter</button>
+      {% if data_type or status %}
+        <a href="/import-history" class="rounded-lg px-3 py-2 font-medium text-slate-500 hover:text-slate-800">Reset</a>
+      {% endif %}
+    </div>
+  </form>
+
+  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3">#</th><th class="px-5 py-3">Type</th><th class="px-5 py-3">File</th>
+            <th class="px-5 py-3">By</th>
+            <th class="px-5 py-3">Status</th><th class="px-5 py-3 text-right">Rows</th>
+            <th class="px-5 py-3">Result <span class="font-normal normal-case text-slate-400">(+ / ~ / skip / fail)</span></th>
+            <th class="px-5 py-3">Created</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for j in jobs %}
+          {% set actor = user_map.get(j.user_id) %}
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-5 py-3"><a class="font-medium text-slate-700 hover:text-indigo-600 hover:underline" href="/import/{{ j.id }}">{{ j.id }}</a></td>
+            <td class="px-5 py-3 capitalize text-slate-600">{{ j.data_type|replace("_", " ") }}</td>
+            <td class="px-5 py-3 max-w-xs truncate text-slate-500">{{ j.filename or "—" }}</td>
+            <td class="px-5 py-3">
+              {% if actor %}
+                <span class="text-slate-700">{{ actor.name or actor.username or actor.email }}</span>
+                {% if actor.email and actor.name %}<span class="block text-xs text-slate-400">{{ actor.email }}</span>{% endif %}
+              {% else %}
+                <span class="text-slate-400">—</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">{{ m.status_badge(j.status) }}</td>
+            <td class="px-5 py-3 text-right tabular-nums text-slate-600">{{ j.total_rows|num }}</td>
+            <td class="px-5 py-3 tabular-nums text-slate-600">{{ j.inserted }} / {{ j.updated }} / {{ j.skipped }} / {{ j.failed }}</td>
+            <td class="px-5 py-3 whitespace-nowrap text-slate-500">{{ j.created_at | wib }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8">{{ m.empty_state("No import sessions found", "Upload a file to create your first import session.", "upload") }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if pages > 1 %}
+    <div class="flex flex-col gap-3 border-t border-slate-200 px-5 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <p class="text-slate-500">Page <span class="font-medium text-slate-700">{{ page }}</span> of <span class="font-medium text-slate-700">{{ pages }}</span></p>
+      <nav class="flex items-center gap-1">
+        <a href="{{ base }}{{ page - 1 }}{{ suffix }}" class="inline-flex h-8 items-center rounded-lg border border-slate-200 px-2.5 text-slate-600 hover:bg-slate-50 {% if page <= 1 %}pointer-events-none opacity-40{% endif %}">Prev</a>
+        {% for p in range(start, end + 1) %}
+          {% if p == page %}
+            <span class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg bg-indigo-600 px-2 font-medium text-white">{{ p }}</span>
+          {% else %}
+            <a href="{{ base }}{{ p }}{{ suffix }}" class="inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-slate-600 hover:bg-slate-50">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+        <a href="{{ base }}{{ page + 1 }}{{ suffix }}" class="inline-flex h-8 items-center rounded-lg border border-slate-200 px-2.5 text-slate-600 hover:bg-slate-50 {% if page >= pages %}pointer-events-none opacity-40{% endif %}">Next</a>
+      </nav>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

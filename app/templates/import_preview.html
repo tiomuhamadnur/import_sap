@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Preview import — Import SAP{% endblock %}
+{% block breadcrumb %}Import / Preview{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2 class="text-xl font-semibold tracking-tight">Preview: {{ spec.title }}</h2>
+      <p class="mt-0.5 text-sm text-slate-500">File: <span class="font-medium text-slate-700">{{ job.filename }}</span></p>
+    </div>
+    {{ m.status_badge(job.status) }}
+  </div>
+
+  <div class="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    {{ m.stat_card("Read", preview.rows_read, "slate", "document") }}
+    {{ m.stat_card("Valid", preview.valid, "emerald", "check") }}
+    {{ m.stat_card("New", preview.new, "sky", "plus") }}
+    {{ m.stat_card("Update", preview['update'], "amber", "refresh") }}
+    {{ m.stat_card("Invalid", preview.invalid, "red", "warning") }}
+  </div>
+
+  {% if preview.extra_columns %}
+    <div class="overflow-hidden rounded-xl border border-amber-200 bg-amber-50 text-sm text-amber-800">
+      <details class="group">
+        <summary class="flex cursor-pointer list-none items-center gap-2 px-4 py-3">
+          <span class="shrink-0">{{ m.icon("warning", "h-5 w-5") }}</span>
+          <span class="font-medium">
+            {{ preview.extra_columns | length }} unrecognized column{{ '' if preview.extra_columns | length == 1 else 's' }} will be ignored
+          </span>
+          <span class="ml-auto shrink-0 transition-transform group-open:rotate-180">{{ m.icon("chevron-down", "h-4 w-4") }}</span>
+        </summary>
+        <div class="border-t border-amber-200/70 px-4 py-3">
+          <p class="mb-2 text-xs opacity-80">These columns aren't mapped to the import and won't be stored. The rest of the file will import normally.</p>
+          <div class="flex flex-wrap gap-1.5">
+            {% for column in preview.extra_columns %}
+              <span class="inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200">{{ column }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </details>
+    </div>
+  {% endif %}
+
+  {% if preview.errors %}
+    <div class="overflow-hidden rounded-2xl border border-red-200 bg-white shadow-sm">
+      <div class="bg-red-50 px-5 py-2.5 text-sm font-medium text-red-700">
+        Validation errors (showing up to {{ preview.errors | length }})
+      </div>
+      <div class="max-h-80 overflow-auto">
+        <table class="min-w-full divide-y divide-red-100 text-sm">
+          <thead class="sticky top-0 bg-white text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <tr><th class="px-5 py-2">Row</th><th class="px-5 py-2">Error</th></tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for e in preview.errors %}
+              <tr><td class="px-5 py-2 text-slate-500">{{ e.row }}</td><td class="px-5 py-2 text-red-700">{{ e.messages | join("; ") }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {% endif %}
+
+  <form method="post" action="/import/{{ job.id }}/confirm" class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <fieldset>
+      <legend class="text-sm font-medium text-slate-700">If the file contains invalid records</legend>
+      <div class="mt-3 space-y-2">
+        <label class="flex items-start gap-3 rounded-lg border border-slate-200 px-3.5 py-3 text-sm hover:bg-slate-50">
+          <input type="radio" name="on_invalid" value="valid_only" checked class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+          <span><span class="font-medium text-slate-700">Import valid records</span><br><span class="text-slate-500">Skip the invalid rows and continue.</span></span>
+        </label>
+        <label class="flex items-start gap-3 rounded-lg border border-slate-200 px-3.5 py-3 text-sm hover:bg-slate-50">
+          <input type="radio" name="on_invalid" value="abort" class="mt-0.5 text-indigo-600 focus:ring-indigo-500">
+          <span><span class="font-medium text-slate-700">Abort if any invalid</span><br><span class="text-slate-500">Stop the whole import if any record is invalid.</span></span>
+        </label>
+      </div>
+    </fieldset>
+    <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
+      <button type="submit"
+              class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+        {{ m.icon("check", "h-4 w-4") }} Start import
+      </button>
+      <a href="/" class="text-sm text-slate-500 hover:text-slate-800">Back</a>
+    </div>
+  </form>
+
+  <form id="discard-form" method="post" action="/import/{{ job.id }}/cancel">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button type="button"
+            @click="$dispatch('confirm-modal', { heading: 'Discard this upload?', message: 'The staged upload will be removed. Nothing has been imported yet.', confirmLabel: 'Discard', formId: 'discard-form', tone: 'danger' })"
+            class="inline-flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-800">
+      {{ m.icon("trash", "h-4 w-4") }} Discard this upload
+    </button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,224 @@
+{% import "_macros.html" as m %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Import SAP{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <style>[x-cloak]{display:none !important}</style>
+</head>
+<body class="bg-slate-100 text-slate-900 antialiased" x-data="shell">
+
+  <div x-cloak x-show="sidebarOpen" x-transition.opacity
+       class="fixed inset-0 z-30 bg-slate-900/50 backdrop-blur-sm lg:hidden"
+       @click="sidebarOpen=false"></div>
+
+  <aside x-cloak class="fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-slate-900 text-slate-100 transition-transform duration-200 lg:translate-x-0"
+         :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'">
+    <div class="flex h-16 items-center gap-2.5 px-5">
+      <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500 text-white">
+        {{ m.icon("database", "h-5 w-5") }}
+      </span>
+      <span class="text-base font-semibold tracking-tight">Import SAP</span>
+      <button type="button" class="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 lg:hidden" @click="sidebarOpen=false">
+        {{ m.icon("x", "h-5 w-5") }}
+      </button>
+    </div>
+
+    <nav class="no-scrollbar flex-1 space-y-6 overflow-y-auto px-3 py-4">
+      {% set groups = [
+        ("Overview", [
+          ("/", "Import", "upload", false),
+          ("/import-history", "Import History", "clock", false),
+        ]),
+        ("Maintenance Processing", [
+          ("/notification", "Notification", "bell", false),
+          ("/work-order", "Work Order", "wrench", false),
+          ("/measuring-document", "Measuring Document", "document", false),
+        ]),
+        ("Master Data", [
+          ("/measuring-point", "Measuring Point", "chart", false),
+          ("/equipment", "Equipment", "cube", false),
+          ("/functional-location", "Functional Location", "pin", false),
+        ]),
+        ("Administration", [
+          ("/users", "Manage Users", "users", true),
+        ]),
+      ] %}
+      {% for group, items in groups %}
+        <div>
+          <p class="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">{{ group }}</p>
+          <div class="space-y-0.5">
+            {% for href, label, icon_name, admin_only in items %}
+              {% if not admin_only or (current_user and current_user.is_admin) %}
+                {% set is_active = active == label %}
+                <a href="{{ href }}" @click="sidebarOpen=false"
+                   class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition
+                          {% if is_active %}bg-indigo-500 text-white{% else %}text-slate-300 hover:bg-slate-800 hover:text-white{% endif %}">
+                  {{ m.icon(icon_name, "h-5 w-5 shrink-0") }}
+                  {{ label }}
+                </a>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+    </nav>
+
+    {% if current_user %}
+    <div class="border-t border-slate-800 px-3 py-3">
+      <a href="/profile" @click="sidebarOpen=false" class="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-slate-800">
+        {{ m.avatar(current_user, "h-8 w-8", "text-xs") }}
+        <div class="min-w-0">
+          <p class="truncate text-sm font-medium text-slate-100">{{ current_user.display_name }}</p>
+          {% if current_user.email %}
+            <p class="truncate text-xs text-slate-400">{{ current_user.email }}</p>
+          {% else %}
+            <p class="text-xs uppercase tracking-wide text-slate-500">{{ current_user.role }}</p>
+          {% endif %}
+        </div>
+      </a>
+    </div>
+    {% endif %}
+  </aside>
+
+  <div class="flex min-h-screen flex-col lg:pl-64">
+    <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+      <button type="button" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" @click="sidebarOpen=true" aria-label="Open navigation">
+        {{ m.icon("menu", "h-6 w-6") }}
+      </button>
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium text-slate-600">{% block breadcrumb %}{% endblock %}</p>
+      </div>
+      {% if current_user %}
+      <div class="relative" x-data="dropdown" @keydown.escape.window="close()">
+        <button type="button" @click="toggle()"
+                class="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-2.5 text-sm hover:bg-slate-50">
+          <span class="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full">
+            {{ m.avatar(current_user, "h-7 w-7", "text-xs") }}
+          </span>
+          <span class="hidden font-medium text-slate-700 sm:inline">{{ current_user.display_name }}</span>
+          {{ m.icon("chevron-down", "h-4 w-4 text-slate-400") }}
+        </button>
+        <div x-cloak x-show="open" x-transition.origin.top.right @click.outside="close()"
+             class="absolute right-0 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          <div class="px-4 py-2">
+            <p class="text-sm font-medium text-slate-800">{{ current_user.display_name }}</p>
+            {% if current_user.email %}<p class="truncate text-xs text-slate-400">{{ current_user.email }}</p>{% endif %}
+            <span class="mt-1 inline-flex rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-indigo-700">{{ current_user.role }}</span>
+          </div>
+          <div class="my-1 border-t border-slate-100"></div>
+          <a href="/profile" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+            {{ m.icon("users", "h-4 w-4 text-slate-400") }} Profile
+          </a>
+          <a href="/change-password" class="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+            {{ m.icon("key", "h-4 w-4 text-slate-400") }} Change password
+          </a>
+          <form method="post" action="/logout">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50">
+              {{ m.icon("logout", "h-4 w-4") }} Sign out
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </header>
+
+    <main class="flex-1 p-4 sm:p-6">
+      {% block content %}{% endblock %}
+    </main>
+
+    <div class="px-4 pb-6 sm:px-6">
+      {{ m.credit("center") }}
+    </div>
+  </div>
+
+  <div id="edit-modal" x-data="editModal" x-cloak
+       @open-edit-modal.window="open=true" @close-edit-modal.window="open=false" @keydown.escape.window="open=false"
+       x-show="open" x-effect="document.body.classList.toggle('overflow-hidden', open)"
+       class="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true">
+    <div x-show="open" x-transition.opacity class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="open=false"></div>
+    <div x-show="open" x-transition
+         class="relative w-full max-w-2xl rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+      <div id="modal-content" class="max-h-[85vh] overflow-y-auto"></div>
+    </div>
+  </div>
+
+  <div x-data="confirmModal" x-cloak
+       @confirm-modal.window="show($event.detail)"
+       x-show="open"
+       class="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-4" role="dialog" aria-modal="true">
+    <div x-show="open" x-transition.opacity class="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" @click="open=false"></div>
+    <div x-show="open" x-transition
+         class="relative w-full max-w-md rounded-t-2xl bg-white p-6 shadow-2xl sm:rounded-2xl">
+      <div class="flex items-start gap-4">
+        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+              :class="tone === 'danger' ? 'bg-red-50 text-red-600' : 'bg-indigo-50 text-indigo-600'">
+          {{ m.icon("warning", "h-5 w-5") }}
+        </span>
+        <div class="min-w-0">
+          <h3 class="text-base font-semibold text-slate-900" x-text="heading"></h3>
+          <p class="mt-1 text-sm text-slate-500" x-text="message"></p>
+        </div>
+      </div>
+      <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button type="button" @click="open=false"
+                class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">
+          Cancel
+        </button>
+        <button type="button" @click="confirm()" x-text="confirmLabel"
+                class="rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-sm"
+                :class="tone === 'danger' ? 'bg-red-600 hover:bg-red-500' : 'bg-indigo-600 hover:bg-indigo-500'"></button>
+      </div>
+    </div>
+  </div>
+
+  <form id="portal-form" method="post" class="hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  </form>
+
+  <script src="/static/vendor/htmx.min.js"></script>
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('shell', () => ({ sidebarOpen: false }));
+      Alpine.data('dropdown', () => ({
+        open: false,
+        toggle() { this.open = !this.open; },
+        close() { this.open = false; },
+      }));
+      Alpine.data('editModal', () => ({ open: false }));
+      Alpine.data('confirmModal', () => ({
+        open: false, heading: '', message: '', confirmLabel: 'Confirm', formId: '', action: '', tone: 'danger',
+        show(detail = {}) {
+          Object.assign(this, {
+            open: true,
+            heading: detail.heading || 'Are you sure?',
+            message: detail.message || '',
+            confirmLabel: detail.confirmLabel || 'Confirm',
+            formId: detail.formId || '',
+            action: detail.action || '',
+            tone: detail.tone || 'danger',
+          });
+        },
+        confirm() {
+          const form = this.formId
+            ? document.getElementById(this.formId)
+            : document.getElementById('portal-form');
+          if (this.action) form.action = this.action;
+          form.submit();
+          this.open = false;
+        },
+      }));
+    });
+    document.body.addEventListener('htmx:configRequest', (event) => {
+      event.detail.headers['X-CSRF-Token'] = document.querySelector('meta[name="csrf-token"]').content;
+    });
+  </script>
+  <script src="/static/vendor/alpine.min.js" defer></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

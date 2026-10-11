@@ -1,0 +1,18 @@
+<form method="post" action="/{{ view.slug }}/{{ record.public_id }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    {% for col in editable %}
+    <div class="{% if col.kind == 'text' and (col.field in ('description',)) %}sm:col-span-2{% endif %}">
+      <label for="edit-{{ col.field }}" class="mb-1.5 block text-sm font-medium text-slate-700">{{ col.label }}</label>
+      <input id="edit-{{ col.field }}" type="text" name="{{ col.field }}" value="{{ record|attr(col.field)|fmt }}"
+             class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-6 flex flex-col-reverse gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:justify-end">
+    <button type="button" @click="$dispatch('close-edit-modal')"
+            class="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Cancel</button>
+    <button type="submit"
+            class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Save changes</button>
+  </div>
+</form>

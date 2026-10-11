@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Import — Import SAP{% endblock %}
+{% block breadcrumb %}Import{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5">
+  <div>
+    <h2 class="text-xl font-semibold tracking-tight">Import data</h2>
+    <p class="mt-0.5 text-sm text-slate-500">Upload an SAP export (.xlsx or .csv), then validate and preview before committing.</p>
+  </div>
+
+  {% if error %}{{ m.alert("error", "Upload failed", error) }}{% endif %}
+  {% if warnings %}
+    <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+      <p class="font-medium">Warnings</p>
+      <ul class="mt-1 list-disc space-y-0.5 pl-5">
+        {% for w in warnings %}<li>{{ w }}</li>{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
+  <form method="post" action="/import/upload" enctype="multipart/form-data"
+        class="space-y-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <div>
+      <label for="data_type" class="mb-1.5 block text-sm font-medium text-slate-700">Data type</label>
+      <select id="data_type" name="data_type" required
+              class="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
+        <option value="" disabled {% if not selected_type %}selected{% endif %}>Select a data type…</option>
+        {% for d in datasets %}
+          <option value="{{ d.value }}" {% if selected_type == d.value %}selected{% endif %}>{{ d.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="file" class="mb-1.5 block text-sm font-medium text-slate-700">File</label>
+      <input id="file" name="file" type="file" accept=".xlsx,.xlsm,.csv" required
+             class="w-full cursor-pointer rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3.5 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-indigo-500">
+      <p class="mt-1.5 text-xs text-slate-400">Max {{ max_upload_mb }} MB. The header must match the SAP export for the chosen data type.</p>
+    </div>
+    <button type="submit"
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+      {{ m.icon("upload", "h-4 w-4") }} Validate &amp; preview
+    </button>
+  </form>
+
+  {% if recent %}
+  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+      <h3 class="text-sm font-semibold text-slate-700">Recent imports</h3>
+      <a href="/import-history" class="text-sm text-slate-500 hover:text-slate-800">View all</a>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-100 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr><th class="px-5 py-2.5">Type</th><th class="px-5 py-2.5">File</th><th class="px-5 py-2.5">By</th><th class="px-5 py-2.5">Status</th><th class="px-5 py-2.5">When</th></tr>
+        </thead>
+        <tbody class="divide-y divide-slate-50">
+          {% for j in recent %}
+          {% set actor = user_map.get(j.user_id) %}
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-5 py-2.5 capitalize text-slate-600">{{ j.data_type|replace("_", " ") }}</td>
+            <td class="px-5 py-2.5"><a class="font-medium text-slate-700 hover:text-indigo-600 hover:underline" href="/import/{{ j.id }}">{{ j.filename or "—" }}</a></td>
+            <td class="px-5 py-2.5 text-slate-500">{{ (actor.name or actor.username or actor.email) if actor else "—" }}</td>
+            <td class="px-5 py-2.5">{{ m.status_badge(j.status) }}</td>
+            <td class="px-5 py-2.5 text-slate-500">{{ j.created_at | wib }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

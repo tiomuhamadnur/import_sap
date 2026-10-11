@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Edit {{ view.title }} — Import SAP{% endblock %}
+{% block breadcrumb %}{{ view.title }} / Edit{% endblock %}
+{% block content %}
+<div class="mb-4">
+  <a href="/{{ view.slug }}/{{ record.public_id }}" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+    {{ m.icon("chevron-left", "h-4 w-4") }} Back to detail
+  </a>
+</div>
+<div class="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white shadow-sm">
+  <div class="border-b border-slate-100 px-6 py-4">
+    <h2 class="text-base font-semibold">Edit {{ view.title }}</h2>
+    <p class="text-sm text-slate-500">{{ record|attr(view.key_field) }}</p>
+  </div>
+  <div class="p-6">
+    {% if error %}<div class="mb-4">{{ m.alert("error", "Could not save", error) }}</div>{% endif %}
+    {% include "_data_edit_form.html" %}
+  </div>
+</div>
+{% endblock %}

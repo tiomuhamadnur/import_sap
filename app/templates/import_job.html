@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Import job — Import SAP{% endblock %}
+{% block breadcrumb %}Import History / Job {{ job.id }}{% endblock %}
+{% block content %}
+<div class="mx-auto max-w-3xl space-y-5">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <a href="/import-history" class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-800">
+        {{ m.icon("chevron-left", "h-4 w-4") }} Back to history
+      </a>
+      <h2 class="mt-1 text-xl font-semibold tracking-tight">Import session #{{ job.id }}</h2>
+    </div>
+  </div>
+
+  {% if error %}{{ m.alert("error", "Action failed", error) }}{% endif %}
+
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <dl class="grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-3">
+      <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Data type</dt><dd class="mt-0.5 font-medium text-slate-800">{{ spec.title if spec else job.data_type }}</dd></div>
+      <div class="col-span-2"><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">File</dt><dd class="mt-0.5 truncate font-medium text-slate-800">{{ job.filename or "—" }}</dd></div>
+      <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Entered by</dt><dd class="mt-0.5 font-medium text-slate-800">{% if actor %}{{ actor.name or actor.username or actor.email }}{% if actor.email and actor.name %}<span class="block text-xs font-normal text-slate-400">{{ actor.email }}</span>{% endif %}{% else %}#{{ job.user_id }}{% endif %}</dd></div>
+      <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Queued</dt><dd class="mt-0.5 font-medium text-slate-800">{{ job.queued_at | wib }}</dd></div>
+      <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Started</dt><dd class="mt-0.5 font-medium text-slate-800">{{ job.started_at | wib }}</dd></div>
+      <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Finished</dt><dd class="mt-0.5 font-medium text-slate-800">{{ job.finished_at | wib }}</dd></div>
+      <div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Created</dt><dd class="mt-0.5 font-medium text-slate-800">{{ job.created_at | wib }}</dd></div>
+    </dl>
+  </div>
+
+  {% include "_import_status.html" %}
+
+  <div class="flex flex-wrap items-center gap-3">
+    {% if job.skipped or job.failed %}
+      <button hx-get="/import/{{ job.id }}/errors" hx-target="#errors-panel" hx-swap="innerHTML"
+              class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+        {{ m.icon("warning", "h-4 w-4 text-slate-400") }} Show skipped / failed records
+      </button>
+    {% endif %}
+    {% if job.status in ("completed", "partial", "failed") %}
+      <form id="rollback-form" method="post" action="/import/{{ job.id }}/rollback">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button type="button"
+                @click="$dispatch('confirm-modal', { heading: 'Roll back this import?', message: 'Inserted records are removed and updated records are restored. Changes from later sessions are preserved.', confirmLabel: 'Roll back', formId: 'rollback-form' })"
+                class="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50">
+          {{ m.icon("refresh", "h-4 w-4") }} Roll back this session
+        </button>
+      </form>
+    {% endif %}
+    <a href="/" class="text-sm font-medium text-slate-500 hover:text-slate-800">New import</a>
+  </div>
+
+  <div id="errors-panel"></div>
+</div>
+{% endblock %}

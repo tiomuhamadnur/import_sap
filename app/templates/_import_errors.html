@@ -1,0 +1,36 @@
+{% import "_macros.html" as m %}
+{% if results %}
+<div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+  <div class="flex items-center justify-between bg-slate-50 px-5 py-2.5 text-sm">
+      <span class="font-medium text-slate-600">Skipped / failed records ({{ total|num }})</span>
+    <span class="text-slate-400">Page {{ page }}</span>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="text-left text-xs font-semibold uppercase tracking-wide text-slate-400">
+        <tr><th class="px-5 py-2">Row</th><th class="px-5 py-2">Status</th><th class="px-5 py-2">Key</th><th class="px-5 py-2">Message</th></tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for r in results %}
+          <tr>
+            <td class="px-5 py-2 text-slate-500">{{ r.row_number }}</td>
+            <td class="px-5 py-2">{{ m.record_badge(r.status) }}</td>
+            <td class="px-5 py-2 text-slate-500">{{ r.key | default({}, true) | tojson }}</td>
+            <td class="px-5 py-2 text-red-700">{{ r.message or "" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="flex items-center justify-between border-t border-slate-100 px-5 py-2.5 text-sm">
+    {% if page > 1 %}
+      <button hx-get="/import/{{ job.id }}/errors?page={{ page - 1 }}" hx-target="#errors-panel" hx-swap="innerHTML" class="text-slate-600 hover:underline">Previous</button>
+    {% else %}<span></span>{% endif %}
+    {% if page * per_page < total %}
+      <button hx-get="/import/{{ job.id }}/errors?page={{ page + 1 }}" hx-target="#errors-panel" hx-swap="innerHTML" class="text-slate-600 hover:underline">Next</button>
+    {% else %}<span></span>{% endif %}
+  </div>
+</div>
+{% else %}
+<p class="text-sm text-slate-500">No skipped or failed records.</p>
+{% endif %}

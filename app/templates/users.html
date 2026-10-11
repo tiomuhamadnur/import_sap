@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% import "_macros.html" as m %}
+{% block title %}Manage Users — Import SAP{% endblock %}
+{% block breadcrumb %}Manage Users{% endblock %}
+{% block content %}
+<div class="space-y-4">
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div>
+      <h2 class="text-xl font-semibold tracking-tight">Users</h2>
+      <p class="mt-0.5 text-sm text-slate-500">{{ users|length|num }} account{{ '' if users|length == 1 else 's' }}</p>
+    </div>
+    <a href="/users/new"
+       class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">
+      {{ m.icon("plus", "h-4 w-4") }} New user
+    </a>
+  </div>
+
+  {% if error %}{{ m.alert("error", "Action failed", error) }}{% endif %}
+
+  <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            <th class="px-5 py-3">User</th>
+            <th class="px-5 py-3">Email</th>
+            <th class="px-5 py-3">Phone</th>
+            <th class="px-5 py-3">Role</th>
+            <th class="px-5 py-3">Status</th>
+            <th class="px-5 py-3">Password</th>
+            <th class="px-5 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {% for u in users %}
+          <tr class="hover:bg-slate-50/80">
+            <td class="px-5 py-3">
+              <div class="flex items-center gap-3">
+                {{ m.avatar(u, "h-8 w-8", "text-xs") }}
+                <div class="leading-tight">
+                  <div class="font-medium text-slate-800">{{ u.name or u.username or u.email or "—" }}</div>
+                  {% if u.username %}<div class="text-xs text-slate-400">@{{ u.username }}</div>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="px-5 py-3">
+              {% if u.email %}<span class="text-slate-600">{{ u.email }}</span>{% else %}<span class="text-slate-400">—</span>{% endif %}
+            </td>
+            <td class="px-5 py-3">
+              {% if u.phone %}<span class="text-slate-600">{{ u.phone }}</span>{% else %}<span class="text-slate-400">—</span>{% endif %}
+            </td>
+            <td class="px-5 py-3">{{ m.role_badge(u.role) }}</td>
+            <td class="px-5 py-3">
+              {% if u.is_active %}
+                <span class="inline-flex items-center gap-1.5 text-emerald-700">
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active
+                </span>
+              {% else %}
+                <span class="inline-flex items-center gap-1.5 text-slate-400">
+                  <span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span> Inactive
+                </span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              {% if u.must_change_password %}
+                <span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">Must change</span>
+              {% else %}
+                <span class="text-slate-400">Set</span>
+              {% endif %}
+            </td>
+            <td class="px-5 py-3">
+              <div class="flex flex-wrap items-center justify-end gap-2">
+                <form method="post" action="/users/{{ u.id }}/reset-password" class="flex items-center gap-1.5">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <input type="password" name="new_password" placeholder="Temp password" minlength="8"
+                         class="w-32 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
+                  <button type="submit" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Reset</button>
+                </form>
+                <a href="/users/{{ u.id }}/edit"
+                   class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Edit">{{ m.icon("pencil", "h-4 w-4") }}</a>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7">{{ m.empty_state("No users yet", "Create the first account to get started.", "users") }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
