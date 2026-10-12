@@ -18,7 +18,7 @@ def _profile_response(request: Request, db, current_user, user, *, error=None, s
     return render(
         request,
         "profile.html",
-        active=None,
+        active="Profile",
         current_user=current_user,
         user=user,
         error=error,

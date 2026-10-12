@@ -5,13 +5,11 @@ import tempfile
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from math import ceil
 from pathlib import Path
 from typing import Annotated
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from openpyxl import Workbook
 from openpyxl.cell import WriteOnlyCell
 from openpyxl.styles import Font
@@ -29,23 +27,14 @@ from app.services.dataviews import (
     existing_values,
     get_view,
 )
-from app.templating import render
+from app.templating import render, templates
 
 router = APIRouter(tags=["data"])
 
-PER_PAGE_CHOICES = (25, 50, 100)
+_cells = templates.env.get_template("_cells.html").module
 
 CSV_MEDIA = "text/csv"
 XLSX_MEDIA = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-
-
-def _make_qs(params: dict[str, str]):
-    def qs(**overrides):
-        merged = {k: v for k, v in params.items() if k not in overrides}
-        merged.update({k: v for k, v in overrides.items() if v not in (None, "")})
-        return "?" + urlencode(merged)
-
-    return qs
 
 
 def get_view_or_404(slug: str) -> EntityView:
@@ -99,19 +88,18 @@ def data_list(
     q: str | None = None,
     sort: str | None = None,
     dir: str = "asc",
-    page: int = 1,
-    per_page: int = 25,
 ):
     filters = _filters(request)
-    per_page = per_page if per_page in PER_PAGE_CHOICES else 25
-    page = max(1, page)
     direction = "desc" if dir == "desc" else "asc"
 
     stmt = build_query(view, filters, q, sort, direction)
     total = count_query(db, stmt)
-    pages = max(1, ceil(total / per_page))
-    page = min(page, pages)
-    rows = list(db.scalars(stmt.offset((page - 1) * per_page).limit(per_page)).all())
+
+    fields = [c.field for c in view.columns]
+    sort_field = sort if sort else view.key_field
+    sort_index = (1 if current_user.is_admin else 0) + (
+        fields.index(sort_field) if sort_field in fields else 0
+    )
 
     return render(
         request,
@@ -119,19 +107,12 @@ def data_list(
         active=view.title,
         current_user=current_user,
         view=view,
-        rows=rows,
-        related=_relations_for_rows(db, view, rows),
-        relations_by_field={r.field: r for r in view.relations},
         filters=filters,
         q=q or "",
-        sort=sort or view.key_field,
+        sort=sort_field,
         dir=direction,
-        page=page,
-        pages=pages,
-        per_page=per_page,
-        per_page_choices=PER_PAGE_CHOICES,
+        sort_index=sort_index,
         total=total,
-        qs=_make_qs(dict(request.query_params)),
     )
 
 
@@ -157,6 +138,60 @@ def data_export(
     if format == "xlsx":
         return _export_xlsx(db, view, row_stmt, headers, fields)
     return _export_csv(db, view, row_stmt, headers, fields)
+
+
+@router.get("/{slug}/data")
+def data_table(
+    request: Request,
+    db: DbDep,
+    view: ViewDep,
+    current_user: RequireUserDep,
+    draw: int = 0,
+    start: int = 0,
+    length: int = 25,
+    q: str | None = None,
+    sort: str | None = None,
+    dir: str = "asc",
+):
+    filters = _filters(request)
+    length = max(1, min(length, 500))
+    start = max(0, start)
+    direction = "desc" if dir == "desc" else "asc"
+
+    stmt = build_query(view, filters, q, sort, direction)
+    total = count_query(db, stmt)
+    rows = list(db.scalars(stmt.offset(start).limit(length)).all())
+
+    related = _relations_for_rows(db, view, rows)
+    relations_by_field = {r.field: r for r in view.relations}
+    is_admin = current_user.is_admin
+
+    data = []
+    for row in rows:
+        item: dict[str, str] = {}
+        if is_admin:
+            item["check"] = str(_cells.entity_checkbox(row))
+        for col in view.columns:
+            item[f"c_{col.field}"] = str(
+                _cells.entity_cell(
+                    view,
+                    row,
+                    col,
+                    relations_by_field.get(col.field),
+                    related.get(col.field, set()),
+                )
+            )
+        item["actions"] = str(_cells.entity_actions(view, row, is_admin))
+        data.append(item)
+
+    return JSONResponse(
+        {
+            "draw": draw,
+            "recordsTotal": total,
+            "recordsFiltered": total,
+            "data": data,
+        }
+    )
 
 
 def _export_rows(db, stmt):

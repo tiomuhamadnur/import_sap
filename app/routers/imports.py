@@ -8,8 +8,8 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import func, or_, select
 
 from app.config import settings
 from app.dependencies import AdminDep, CsrfDep, DbDep, RequireUserDep
@@ -24,12 +24,23 @@ from app.importing import (
 from app.models import IMPORT_JOB_STATUSES, AuditLog, ImportJob, ImportRecordResult, User
 from app.services.importer import existing_keys
 from app.services.rollback import rollback_job
-from app.templating import render
+from app.templating import render, templates
 
 router = APIRouter(tags=["import"])
 
+_cells = templates.env.get_template("_cells.html").module
+
 IMPORT_OPTIONS = ("valid_only", "abort")
 ALLOWED_SUFFIXES = (".xlsx", ".xlsm", ".csv")
+
+_JOB_SORT = {
+    "id": ImportJob.id,
+    "data_type": ImportJob.data_type,
+    "filename": ImportJob.filename,
+    "status": ImportJob.status,
+    "total_rows": ImportJob.total_rows,
+    "created_at": ImportJob.created_at,
+}
 
 
 def _dataset_list() -> list[dict[str, str]]:
@@ -277,31 +288,75 @@ def import_history(
     current_user: RequireUserDep,
     data_type: str | None = None,
     status: str | None = None,
-    page: int = 1,
 ):
-    page = max(1, page)
-    per_page = 20
-    stmt = select(ImportJob).order_by(ImportJob.created_at.desc())
+    stmt = select(ImportJob)
     if data_type in DATASETS:
         stmt = stmt.where(ImportJob.data_type == data_type)
     if status in IMPORT_JOB_STATUSES:
         stmt = stmt.where(ImportJob.status == status)
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
-    jobs = list(db.scalars(stmt.offset((page - 1) * per_page).limit(per_page)).all())
     return render(
         request,
         "import_history.html",
         active="Import History",
         current_user=current_user,
-        jobs=jobs,
-        user_map=_user_map(db, jobs),
         datasets=_dataset_list(),
         data_type=data_type if data_type in DATASETS else None,
         status=status if status in IMPORT_JOB_STATUSES else None,
         statuses=IMPORT_JOB_STATUSES,
-        page=page,
-        per_page=per_page,
         total=total,
+    )
+
+
+@router.get("/import-history/data")
+def import_history_table(
+    request: Request,
+    db: DbDep,
+    current_user: RequireUserDep,
+    draw: int = 0,
+    start: int = 0,
+    length: int = 25,
+    q: str | None = None,
+    sort: str | None = None,
+    dir: str = "asc",
+    data_type: str | None = None,
+    status: str | None = None,
+):
+    length = max(1, min(length, 500))
+    start = max(0, start)
+    direction = "desc" if dir == "desc" else "asc"
+
+    stmt = select(ImportJob)
+    if data_type in DATASETS:
+        stmt = stmt.where(ImportJob.data_type == data_type)
+    if status in IMPORT_JOB_STATUSES:
+        stmt = stmt.where(ImportJob.status == status)
+    if q and q.strip():
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(ImportJob.filename.ilike(needle), ImportJob.data_type.ilike(needle))
+        )
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    sort_col = _JOB_SORT.get(sort or "", ImportJob.created_at)
+    stmt = stmt.order_by(sort_col.desc() if direction == "desc" else sort_col.asc(), ImportJob.id.desc())
+    jobs = list(db.scalars(stmt.offset(start).limit(length)).all())
+    user_map = _user_map(db, jobs)
+
+    data = [
+        {
+            "id": str(_cells.job_id(j)),
+            "data_type": str(_cells.job_type(j)),
+            "filename": str(_cells.job_file(j)),
+            "actor": str(_cells.job_actor(user_map.get(j.user_id))),
+            "status": str(_cells.job_status(j)),
+            "total_rows": str(_cells.job_rows(j)),
+            "result": str(_cells.job_result(j)),
+            "created_at": str(_cells.job_created(j)),
+        }
+        for j in jobs
+    ]
+    return JSONResponse(
+        {"draw": draw, "recordsTotal": total, "recordsFiltered": total, "data": data}
     )
 
 

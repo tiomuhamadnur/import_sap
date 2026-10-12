@@ -16,3 +16,5 @@ samples/**/*.xlsx
 samples/**/*.csv
 samples/**/*.xls
 !samples/**/.gitkeep
+graphify-out/
+tools/tailwindcss.exe

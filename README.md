@@ -188,6 +188,21 @@ $env:POSTGRES_HOST='localhost'
 
 Pengguna tersebut akan diwajibkan mengganti password pada login berikutnya.
 
+## Struktur dan versioning repositori
+
+Direktori utama:
+
+- `app/` — aplikasi FastAPI (`routers/`, `services/`, `importing/`, `models/`, `templates/`, `static/`)
+- `migrations/` — migrasi Alembic
+- `tools/` — skrip bantu pengembangan (inspeksi/konversi sampel, seed)
+- `tests/` — pengujian pytest
+- `worker/`, `scripts/` — worker RQ dan skrip operasional (backup)
+- `samples/` — data sampel development (`<data_type>/.gitkeep` versioned)
+
+Di-version ke git: seluruh kode, template, CSS hasil build, migrasi, dan dokumentasi.
+
+Tidak di-version (lihat `.gitignore`): `.env`, `.venv/`, `samples/**/*.{xlsx,csv,xls}`, `backups/`, `uploads/`, `graphify-out/`, dan binary `tools/tailwindcss.exe` (40 MB — gunakan `npx tailwindcss` untuk membangun CSS). Entri yang sama dikecualikan dari build context Docker melalui `.dockerignore`.
+
 ## Catatan penting
 
 - File sumber hanya disimpan sementara selama pekerjaan impor berjalan, lalu dihapus setelah proses terminal. Riwayat dan hasil per-record tetap tersimpan di database.

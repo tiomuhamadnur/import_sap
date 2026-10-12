@@ -1,0 +1,108 @@
+{% import "_macros.html" as m %}
+
+{# Entity (data view) cells #}
+
+{% macro entity_checkbox(row) -%}
+<input type="checkbox" name="ids" value="{{ row.id }}" class="dt-row-check rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+{%- endmacro %}
+
+{% macro entity_cell(view, row, col, relation, related) -%}
+  {%- set value = row|attr(col.field) -%}
+  {%- if col.field == view.key_field -%}
+    <a href="/{{ view.slug }}/{{ row.public_id }}" class="hover:text-indigo-600 hover:underline">{{ value|fmt }}</a>
+  {%- elif relation and value -%}
+    {%- if value|string in related -%}
+      <a href="/{{ relation.slug }}?f_{{ relation.target_field }}={{ value|urlencode }}" class="text-sky-700 hover:underline">{{ value|fmt }}</a>
+    {%- else -%}
+      <span>{{ value|fmt }}</span>
+      <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700" title="No matching {{ relation.label }} record">unlinked</span>
+    {%- endif -%}
+  {%- else -%}
+    {{ value|fmt }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro entity_actions(view, row, is_admin) -%}
+<div class="flex items-center justify-end gap-1">
+  <a href="/{{ view.slug }}/{{ row.public_id }}" title="View" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">{{ m.icon("eye", "h-4 w-4") }}</a>
+  {%- if is_admin %}
+  <button type="button" title="Edit" data-edit-url="/{{ view.slug }}/{{ row.public_id }}/edit" class="dt-edit rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">{{ m.icon("pencil", "h-4 w-4") }}</button>
+  <button type="button" title="Delete" data-delete-url="/{{ view.slug }}/{{ row.public_id }}/delete" data-delete-label="{{ row|attr(view.key_field) }}" class="dt-delete rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">{{ m.icon("trash", "h-4 w-4") }}</button>
+  {%- endif %}
+</div>
+{%- endmacro %}
+
+{# User cells #}
+
+{% macro user_identity(u) -%}
+<div class="flex items-center gap-3">
+  {{ m.avatar(u, "h-8 w-8", "text-xs") }}
+  <div class="leading-tight">
+    <div class="font-medium text-slate-800">{{ u.name or u.username or u.email or "—" }}</div>
+    {% if u.username %}<div class="text-xs text-slate-400">@{{ u.username }}</div>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro user_email(u) -%}
+{%- if u.email -%}<span class="text-slate-600">{{ u.email }}</span>{%- else -%}<span class="text-slate-400">—</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro user_phone(u) -%}
+{%- if u.phone -%}<span class="text-slate-600">{{ u.phone }}</span>{%- else -%}<span class="text-slate-400">—</span>{%- endif -%}
+{%- endmacro %}
+
+{% macro user_role(u) -%}{{ m.role_badge(u.role) }}{%- endmacro %}
+
+{% macro user_status(u) -%}
+{%- if u.is_active -%}
+<span class="inline-flex items-center gap-1.5 text-emerald-700"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span> Active</span>
+{%- else -%}
+<span class="inline-flex items-center gap-1.5 text-slate-400"><span class="h-1.5 w-1.5 rounded-full bg-slate-300"></span> Inactive</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro user_password(u) -%}
+{%- if u.must_change_password -%}
+<span class="inline-flex rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">Must change</span>
+{%- else -%}
+<span class="text-slate-400">Set</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro user_actions(u, csrf_token) -%}
+<div class="flex flex-wrap items-center justify-end gap-2">
+  <form method="post" action="/users/{{ u.id }}/reset-password" class="flex items-center gap-1.5">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="password" name="new_password" placeholder="Temp password" minlength="8"
+           class="w-32 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
+    <button type="submit" class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">Reset</button>
+  </form>
+  <a href="/users/{{ u.id }}/edit" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Edit">{{ m.icon("pencil", "h-4 w-4") }}</a>
+</div>
+{%- endmacro %}
+
+{# Import job cells #}
+
+{% macro job_id(j) -%}<a class="font-medium text-slate-700 hover:text-indigo-600 hover:underline" href="/import/{{ j.id }}">{{ j.id }}</a>{%- endmacro %}
+
+{% macro job_type(j) -%}<span class="capitalize text-slate-600">{{ j.data_type|replace("_", " ") }}</span>{%- endmacro %}
+
+{% macro job_file(j) -%}<span class="text-slate-500">{{ j.filename or "—" }}</span>{%- endmacro %}
+
+{% macro job_actor(actor) -%}
+{%- if actor -%}
+<span class="text-slate-700">{{ actor.name or actor.username or actor.email }}</span>
+{%- if actor.email and actor.name %}<span class="block text-xs text-slate-400">{{ actor.email }}</span>{% endif -%}
+{%- else -%}
+<span class="text-slate-400">—</span>
+{%- endif -%}
+{%- endmacro %}
+
+{% macro job_status(j) -%}{{ m.status_badge(j.status) }}{%- endmacro %}
+
+{% macro job_rows(j) -%}<span class="tabular-nums text-slate-600">{{ j.total_rows|num }}</span>{%- endmacro %}
+
+{% macro job_result(j) -%}<span class="tabular-nums text-slate-600">{{ j.inserted }} / {{ j.updated }} / {{ j.skipped }} / {{ j.failed }}</span>{%- endmacro %}
+
+{% macro job_created(j) -%}<span class="text-slate-500">{{ j.created_at|wib }}</span>{%- endmacro %}

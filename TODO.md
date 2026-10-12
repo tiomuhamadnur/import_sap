@@ -2,7 +2,7 @@
 
 Trace pelaksanaan pengembangan. Legenda: `[x]` selesai · `[~]` sebagian · `[ ]` belum.
 
-Terakhir diperbarui: 11 Oktober 2026
+Terakhir diperbarui: 12 Oktober 2026
 
 ---
 
@@ -171,6 +171,16 @@ Terakhir diperbarui: 11 Oktober 2026
 - [x] Avatar tampil di sidebar, header, dan tabel Users (fallback inisial)
 - [x] Menu dropdown header: tautan **Profile** di atas **Change password**
 - [x] 8 test baru (`tests/test_profile.py`); 62 test lolos; `ruff` bersih; CSS + container dibangun ulang; verifikasi halaman 200
+
+---
+
+## Fase 10 — Kebersihan Repo & Dokumen  `[x]`
+
+- [x] Untrack artefak build/tool: `tools/tailwindcss.exe` (40 MB) dan `graphify-out/` (137 file, output graphify)
+- [x] `.gitignore` + `.dockerignore` mengecualikan `graphify-out/`, `tools/tailwindcss.exe`, `*.dump` (context `docker build` turun ~44 MB)
+- [x] Hapus backup gagal 0-byte di `backups/`
+- [x] `BRD.md` ditandai as-built; bagian "Keputusan yang Masih Terbuka" ditutup via rujukan ke tabel Keputusan Terkunci di atas
+- [x] `README.md` diberi catatan struktur & versioning repo
 
 ---
 

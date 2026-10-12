@@ -8,6 +8,7 @@
   <meta name="csrf-token" content="{{ csrf_token }}">
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
   <style>[x-cloak]{display:none !important}</style>
 </head>
 <body class="bg-slate-100 text-slate-900 antialiased" x-data="shell">
@@ -86,10 +87,26 @@
   </aside>
 
   <div class="flex min-h-screen flex-col lg:pl-64">
+    {% set page_icons = {
+      "Import": "upload",
+      "Import History": "clock",
+      "Notification": "bell",
+      "Work Order": "wrench",
+      "Measuring Document": "document",
+      "Measuring Point": "chart",
+      "Equipment": "cube",
+      "Functional Location": "pin",
+      "Manage Users": "users",
+      "Profile": "user",
+    } %}
+
     <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
       <button type="button" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 lg:hidden" @click="sidebarOpen=true" aria-label="Open navigation">
         {{ m.icon("menu", "h-6 w-6") }}
       </button>
+      <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+        {{ m.icon(page_icons.get(active, "database"), "h-5 w-5") }}
+      </span>
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-medium text-slate-600">{% block breadcrumb %}{% endblock %}</p>
       </div>

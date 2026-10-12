@@ -2,6 +2,10 @@
 {% import "_macros.html" as m %}
 {% block title %}{{ view.title }} — Import SAP{% endblock %}
 {% block breadcrumb %}{{ view.title }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="/static/vendor/dataTables.min.css">
+<link rel="stylesheet" href="/static/css/datatables.css">
+{% endblock %}
 {% block content %}
 <div class="space-y-4">
 
@@ -9,15 +13,16 @@
     <div>
       <h2 class="text-xl font-semibold tracking-tight">{{ view.title }}</h2>
       <p class="mt-0.5 text-sm text-slate-500">
-        {{ total|num }} record{{ '' if total == 1 else 's' }}
-        {% if q or filters %}<span class="text-slate-400">· filtered</span>{% endif %}
+        <span data-dt-records>{{ total|num }}</span> record{{ '' if total == 1 else 's' }}
       </p>
     </div>
     <div class="flex items-center gap-2">
-      <a href="{{ qs(format='csv') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+      <a href="/{{ view.slug }}/export?format=csv" data-format="csv"
+         class="dt-export inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
         {{ m.icon("download", "h-4 w-4 text-slate-400") }} CSV
       </a>
-      <a href="{{ qs(format='xlsx') }}" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+      <a href="/{{ view.slug }}/export?format=xlsx" data-format="xlsx"
+         class="dt-export inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
         {{ m.icon("download", "h-4 w-4 text-slate-400") }} Excel
       </a>
     </div>
@@ -28,31 +33,8 @@
   {% endif %}
 
   <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
-    <form method="get" action="/{{ view.slug }}" class="p-4">
-      <input type="hidden" name="sort" value="{{ sort }}">
-      <input type="hidden" name="dir" value="{{ dir }}">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div class="relative flex-1">
-          <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">{{ m.icon("search", "h-5 w-5") }}</span>
-          <input type="search" name="q" value="{{ q }}" placeholder="Search {{ view.title|lower }}…"
-                 class="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-3 text-sm shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
-        </div>
-        <div class="flex items-center gap-2">
-          <label for="per_page" class="text-sm text-slate-500">Show</label>
-          <select id="per_page" name="per_page" onchange="this.form.submit()"
-                  class="rounded-lg border border-slate-300 py-2.5 pl-3 pr-8 text-sm shadow-sm focus:border-indigo-500 focus:outline-none">
-            {% for n in per_page_choices %}
-            <option value="{{ n }}" {% if n == per_page %}selected{% endif %}>{{ n }}</option>
-            {% endfor %}
-          </select>
-          <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500">Search</button>
-          {% if q or filters %}
-            <a href="/{{ view.slug }}" class="rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800">Reset</a>
-          {% endif %}
-        </div>
-      </div>
-
-      <details class="mt-3" {% if filters %}open{% endif %}>
+    <form id="dt-filter-form" class="p-4">
+      <details {% if filters %}open{% endif %}>
         <summary class="flex cursor-pointer items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-800">
           {{ m.icon("filter", "h-4 w-4") }} Column filters
           {% if filters %}<span class="rounded-full bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700">{{ filters|length }}</span>{% endif %}
@@ -61,134 +43,74 @@
           {% for col in view.filter_columns %}
           <div>
             <label class="mb-1 block text-xs font-medium text-slate-500">{{ col.label }}</label>
-            <input type="text" name="f_{{ col.field }}" value="{{ filters.get(col.field, '') }}" placeholder="Any"
+            <input type="text" name="f_{{ col.field }}" data-dt-filter value="{{ filters.get(col.field, '') }}" placeholder="Any"
                    class="w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 focus:outline-none">
           </div>
           {% endfor %}
         </div>
-        <button type="submit" class="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Apply filters</button>
+        <div class="mt-3 flex items-center gap-2">
+          <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">Apply filters</button>
+          <button type="button" id="dt-filter-reset" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:text-slate-800">Reset</button>
+        </div>
       </details>
-
-      {% if q or filters %}
-      <div class="mt-3 flex flex-wrap items-center gap-2">
-        {% if q %}
-          <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-xs font-medium text-slate-600">
-            Search: {{ q }}
-            <a href="{{ qs(q='') }}" class="rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700">{{ m.icon("x", "h-3.5 w-3.5") }}</a>
-          </span>
-        {% endif %}
-        {% for col in view.filter_columns %}
-          {% if filters.get(col.field) %}
-            <span class="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-xs font-medium text-slate-600">
-              {{ col.label }}: {{ filters.get(col.field) }}
-              <a href="{{ qs(**{'f_' ~ col.field: ''}) }}" class="rounded-full p-0.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700">{{ m.icon("x", "h-3.5 w-3.5") }}</a>
-            </span>
-          {% endif %}
-        {% endfor %}
-      </div>
-      {% endif %}
     </form>
   </div>
 
-  <form id="bulk-form" method="post" action="/{{ view.slug }}/bulk-delete" x-data="{ ids: [] }">
+  <form id="bulk-form" method="post" action="/{{ view.slug }}/bulk-delete">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
 
     {% if current_user.is_admin %}
-    <div x-cloak x-show="ids.length > 0" x-transition
-         class="mb-2 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm">
-      <span class="text-red-700"><span x-text="ids.length"></span> selected</span>
-      <button type="button"
-              @click="$dispatch('confirm-modal', { heading: 'Delete selected records?', message: 'This permanently removes the selected records and cannot be undone.', confirmLabel: 'Delete', formId: 'bulk-form' })"
+    <div id="dt-bulk-bar" class="hidden mb-2 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm">
+      <span class="text-red-700"><span data-dt-selected>0</span> selected</span>
+      <button type="button" id="dt-bulk-delete"
               class="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500">
         {{ m.icon("trash", "h-4 w-4") }} Delete selected
       </button>
-      <button type="button" @click="ids = []" class="text-sm text-red-700 hover:underline">Clear</button>
+      <button type="button" id="dt-bulk-clear" class="text-sm text-red-700 hover:underline">Clear</button>
     </div>
     {% endif %}
 
-    <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-      <div class="max-h-[70vh] overflow-auto">
-        <table class="min-w-full divide-y divide-slate-200 text-sm">
-          <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-            <tr>
-              {% if current_user.is_admin %}
-              <th class="w-10 px-3 py-3">
-                <input type="checkbox" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                       :checked="ids.length > 0 && ids.length === {{ rows|length }}"
-                       @change="ids = $event.target.checked ? Array.from($el.closest('table').querySelectorAll('tbody input[name=ids]')).map(el => el.value) : []">
-              </th>
-              {% endif %}
-              {% for col in view.columns %}
-              <th class="whitespace-nowrap px-3 py-3 {% if col.kind == 'num' %}text-right{% endif %}">
-                <a href="{{ qs(sort=col.field, dir=('desc' if (sort == col.field and dir == 'asc') else 'asc'), page=1) }}"
-                   class="inline-flex items-center gap-1 hover:text-slate-800">
-                  {{ col.label }}
-                  {% if sort == col.field %}
-                    {{ m.icon("chevron-down" if dir == "desc" else "chevron-up", "h-3.5 w-3.5 text-indigo-600") }}
-                  {% endif %}
-                </a>
-              </th>
-              {% endfor %}
-              <th class="px-3 py-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            {% for row in rows %}
-            {% set row_key = row|attr(view.key_field) %}
-            <tr class="group hover:bg-slate-50/80">
-              {% if current_user.is_admin %}
-              <td class="px-3 py-2.5">
-                <input type="checkbox" name="ids" value="{{ row.id }}" x-model="ids"
-                       class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
-              </td>
-              {% endif %}
-              {% for col in view.columns %}
-                {% set relation = relations_by_field.get(col.field) %}
-                {% set value = row|attr(col.field) %}
-                <td class="whitespace-nowrap px-3 py-2.5 {% if col.kind == 'num' %}text-right tabular-nums{% endif %}
-                           {% if col.field == view.key_field %}font-medium text-slate-900{% else %}text-slate-600{% endif %}">
-                  {% if col.field == view.key_field %}
-                    <a href="/{{ view.slug }}/{{ row.public_id }}" class="hover:text-indigo-600 hover:underline">{{ value|fmt }}</a>
-                  {% elif relation and value %}
-                    {% if value|string in related.get(col.field, []) %}
-                      <a href="/{{ relation.slug }}?f_{{ relation.target_field }}={{ value|urlencode }}" class="text-sky-700 hover:underline">{{ value|fmt }}</a>
-                    {% else %}
-                      <span>{{ value|fmt }}</span>
-                      <span class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-700" title="No matching {{ relation.label }} record">unlinked</span>
-                    {% endif %}
-                  {% else %}
-                    {{ value|fmt }}
-                  {% endif %}
-                </td>
-              {% endfor %}
-              <td class="whitespace-nowrap px-3 py-2.5 text-right">
-                <div class="flex items-center justify-end gap-1">
-                  <a href="/{{ view.slug }}/{{ row.public_id }}" title="View"
-                     class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">{{ m.icon("eye", "h-4 w-4") }}</a>
-                  {% if current_user.is_admin %}
-                  <button type="button" title="Edit"
-                          hx-get="/{{ view.slug }}/{{ row.public_id }}/edit" hx-target="#modal-content" hx-swap="innerHTML"
-                          @click="$dispatch('open-edit-modal')"
-                          class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700">{{ m.icon("pencil", "h-4 w-4") }}</button>
-                  <button type="button" title="Delete"
-                          @click="$dispatch('confirm-modal', { heading: 'Delete record?', message: 'Delete {{ row_key }} permanently? This cannot be undone.', confirmLabel: 'Delete', action: '/{{ view.slug }}/{{ row.public_id }}/delete' })"
-                          class="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600">{{ m.icon("trash", "h-4 w-4") }}</button>
-                  {% endif %}
-                </div>
-              </td>
-            </tr>
-            {% else %}
-            <tr>
-              <td colspan="{{ view.columns|length + (2 if current_user.is_admin else 1) }}">
-                {{ m.empty_state("No records found", "Try adjusting your search or filters, or import data first.") }}
-              </td>
-            </tr>
+    <div class="dt-wrap overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+      <table id="dt" class="min-w-full text-sm">
+        <thead class="sticky top-0 z-10 bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <tr>
+            {% if current_user.is_admin %}
+            <th class="w-10 px-3 py-3">
+              <input type="checkbox" class="dt-check-all rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+            </th>
+            {% endif %}
+            {% for col in view.columns %}
+            <th class="px-3 py-3 {% if col.kind == 'num' %}text-right{% endif %}">{{ col.label }}</th>
             {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {{ m.pagination(page, pages, total, per_page, qs) }}
+            <th class="px-3 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
     </div>
   </form>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="/static/vendor/jquery.min.js"></script>
+<script src="/static/vendor/dataTables.min.js"></script>
+<script src="/static/js/datatables.js"></script>
+<script>
+  initServerTable({
+    table: '#dt',
+    url: '/{{ view.slug }}/data',
+    exportUrl: '/{{ view.slug }}/export',
+    filters: '#dt-filter-form',
+    initialSearch: {{ q|tojson }},
+    pageLength: 25,
+    searchPlaceholder: 'Search {{ view.title|lower }}…',
+    emptyTable: 'No records found',
+    order: [[{{ sort_index }}, '{{ dir }}']],
+    columns: [
+      {% if current_user.is_admin %}{ data: 'check', orderable: false, className: 'w-10' },{% endif %}
+      {% for col in view.columns %}{ data: 'c_{{ col.field }}', name: '{{ col.field }}', className: '{{ 'text-right tabular-nums' if col.kind == 'num' else '' }}' },{% endfor %}
+      { data: 'actions', orderable: false, className: 'text-right' }
+    ]
+  });
+</script>
 {% endblock %}

@@ -11,3 +11,6 @@ __pycache__
 backups
 uploads
 samples
+graphify-out
+tools/tailwindcss.exe
+*.dump

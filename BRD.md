@@ -1,10 +1,14 @@
 # Business Requirements Document (BRD)
 ## Aplikasi Import dan Analisis Data Maintenance SAP
 
-**Status dokumen:** Draft — kebutuhan awal  
-**Versi:** 0.1  
-**Tanggal:** 10 Oktober 2026  
+**Status dokumen:** As-built — implementasi selesai (lihat [TODO.md](TODO.md) untuk trace pelaksanaan)  
+**Versi:** 1.0  
+**Tanggal:** 12 Oktober 2026  
 **Bahasa:** Indonesia
+
+> **Catatan status:** Dokumen ini awalnya disusun sebagai draft kebutuhan. Seluruh keputusan terbuka pada saat draft (composite key, kolom wajib, aturan update, backup, stack, dsb.) kini sudah ditetapkan dan diimplementasikan. Tabel **Keputusan Terkunci** di [TODO.md](TODO.md) menjadi acuan tunggal keputusan final; dokumen ini dipertahankan sebagai rujukan latar belakang dan kebutuhan bisnis.
+>
+> Perluasan di luar draft awal: implementasi menambahkan **Functional Location** dan **Measuring Point** (di luar empat jenis data yang disebut di draft), sehingga saat ini ada **enam** jenis data.
 
 ---
 
@@ -385,22 +389,24 @@ Kriteria yang bergantung pada composite key, kolom wajib, relasi, dan aturan pem
 | Referensi Equipment belum tersedia | Relasi transaksi sementara belum terhubung | Pencocokan otomatis setelah master Equipment masuk |
 | Kebijakan backup belum diputuskan | Risiko kehilangan data | Tetapkan backup dan uji restore sebelum go-live |
 
-## 13. Keputusan yang Masih Terbuka
+## 13. Keputusan yang Semula Terbuka (kini ditetapkan)
 
-Hal-hal berikut harus diselesaikan sebelum desain teknis final:
+Seluruh keputusan berikut sudah diselesaikan dan diimplementasikan. Ringkasan final ada di tabel **Keputusan Terkunci** pada [TODO.md](TODO.md); bagian ini memetakan tiap pertanyaan draft ke keputusan yang diambil.
 
-1. Nama header dan kolom wajib setiap jenis data.
-2. Composite key untuk Notification, Work Order, Measuring Document, dan Equipment.
-3. Kolom relasi Notification–Work Order dan relasi ke Equipment.
-4. Aturan pembaruan per jenis data saat impor ulang.
-5. Kebijakan record valid dan invalid dalam satu file serta apakah record valid dapat diproses secara parsial.
-6. Perilaku persetujuan perubahan Equipment dan apakah mekanisme serupa berlaku untuk jenis data lain.
-7. Struktur penyimpanan kolom SAP dan strategi menangani perubahan struktur ekspor.
-8. Kebijakan backup, retensi, dan pemulihan.
-9. Stack frontend/backend, job queue, autentikasi tambahan, serta arsitektur deployment.
-10. Target performa, batas file, dan retensi file sumber.
-11. Detail rollback jika record hasil impor sudah diubah oleh proses lain.
-12. Kebijakan penghapusan/penonaktifan akun dan retensi audit log.
+| # | Pertanyaan draft | Keputusan final |
+|---|---|---|
+| 1 | Nama header dan kolom wajib setiap jenis data | `required_headers` per jenis di `app/importing/specs.py`; pemetaan by header name (exact match) |
+| 2 | Composite key tiap jenis data | Kunci natural per entitas (mis. `Equipment`, `Order`, `Notification`) — lihat tabel di TODO.md |
+| 3 | Kolom relasi Notification–Work Order dan ke Equipment | Auto-link berbasis nilai EQ/FL/NOTIF/ORDER; ditampilkan sebagai "unlinked" bila master belum ada |
+| 4 | Aturan pembaruan saat impor ulang | Upsert otomatis (overwrite) berdasarkan natural key (`app/services/upsert.py`) |
+| 5 | Kebijakan record valid/invalid | Admin memilih pada pratinjau: lanjut parsial atau batalkan |
+| 6 | Persetujuan perubahan Equipment | Tanpa approval terpisah; overwrite otomatis seperti jenis lain |
+| 7 | Penyimpanan kolom SAP asli | Kolom terkurasi + `raw_data` JSONB menyimpan seluruh kolom SAP asli |
+| 8 | Kebijakan backup, retensi, pemulihan | `pg_dump -Fc` harian via service `backup`, retensi 14 hari; drill restore diuji |
+| 9 | Stack, job queue, deployment | FastAPI + Jinja2 + HTMX + Alpine + Tailwind; Redis/RQ per jenis; Docker Compose |
+| 10 | Target performa, batas file, retensi file sumber | Uji volume 100k–1jt; file sumber tidak disimpan permanen (rollback dari histori DB) |
+| 11 | Rollback bila record diubah proses lain | Per-record, lewati & catat konflik `import_job_id` berbeda |
+| 12 | Penonaktifan akun & retensi audit log | Akun dinonaktifkan (bukan dihapus); audit log permanen |
 
 ## 14. Rekomendasi Tahap Implementasi
 
@@ -436,4 +442,4 @@ Hal-hal berikut harus diselesaikan sebelum desain teknis final:
 
 ---
 
-**Catatan akhir:** Dokumen ini dapat digunakan sebagai dasar perencanaan dan prompt awal untuk pengembangan aplikasi. Namun, implementasi impor yang akurat belum boleh mengunci struktur kolom atau composite key sebelum sampel ekspor SAP diperiksa.
+**Catatan akhir:** Dokumen ini dipertahankan sebagai rujukan kebutuhan bisnis. Implementasi telah mengunci struktur kolom, composite key, aturan pembaruan, dan relasi berdasarkan sampel ekspor SAP yang diperiksa — semuanya tercatat di [TODO.md](TODO.md). Perubahan kebutuhan selanjutnya sebaiknya dicatat sebagai revisi dokumen ini.

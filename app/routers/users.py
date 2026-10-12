@@ -1,15 +1,26 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Form, HTTPException, Request, Response
-from fastapi.responses import RedirectResponse
-from sqlalchemy import func, select
+from fastapi.responses import JSONResponse, RedirectResponse
+from sqlalchemy import func, or_, select
 
 from app.dependencies import ROLE_ADMIN, ROLE_VIEWER, AdminDep, CsrfDep, DbDep
 from app.models import AuditLog, User
 from app.security import hash_password, password_error
-from app.templating import render
+from app.templating import get_csrf_token, render, templates
 
 router = APIRouter(tags=["users"], prefix="/users")
+
+_cells = templates.env.get_template("_cells.html").module
+
+_USER_SORT = {
+    "name": User.name,
+    "email": User.email,
+    "phone": User.phone,
+    "role": User.role,
+    "is_active": User.is_active,
+    "must_change_password": User.must_change_password,
+}
 
 
 def _log(db, actor_id: int, action: str, target: User, result: str = "success", detail=None):
@@ -39,6 +50,56 @@ def list_users(request: Request, db: DbDep, current_user: AdminDep):
         users=_list_users(db),
         error=None,
     )
+
+@router.get("/data")
+def users_table(
+    request: Request,
+    db: DbDep,
+    current_user: AdminDep,
+    draw: int = 0,
+    start: int = 0,
+    length: int = 25,
+    q: str | None = None,
+    sort: str | None = None,
+    dir: str = "asc",
+):
+    length = max(1, min(length, 500))
+    start = max(0, start)
+    direction = "desc" if dir == "desc" else "asc"
+
+    stmt = select(User)
+    if q and q.strip():
+        needle = f"%{q.strip()}%"
+        stmt = stmt.where(
+            or_(
+                User.name.ilike(needle),
+                User.username.ilike(needle),
+                User.email.ilike(needle),
+                User.phone.ilike(needle),
+            )
+        )
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    sort_col = _USER_SORT.get(sort or "", User.name)
+    stmt = stmt.order_by(sort_col.desc() if direction == "desc" else sort_col.asc(), User.id.asc())
+    users = list(db.scalars(stmt.offset(start).limit(length)).all())
+
+    csrf = get_csrf_token(request)
+    data = [
+        {
+            "identity": str(_cells.user_identity(u)),
+            "email": str(_cells.user_email(u)),
+            "phone": str(_cells.user_phone(u)),
+            "role": str(_cells.user_role(u)),
+            "status": str(_cells.user_status(u)),
+            "password": str(_cells.user_password(u)),
+            "actions": str(_cells.user_actions(u, csrf)),
+        }
+        for u in users
+    ]
+    return JSONResponse(
+        {"draw": draw, "recordsTotal": total, "recordsFiltered": total, "data": data}
+    )
+
 
 @router.get("/new")
 def new_user_page(request: Request, current_user: AdminDep):
