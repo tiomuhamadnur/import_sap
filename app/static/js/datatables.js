@@ -24,6 +24,9 @@
         target.dir = target.order[0].dir;
       }
     }
+    if (target.search && target.search.value) {
+      target.q = target.search.value;
+    }
     var filters = collectFilters(filterSelector);
     Object.keys(filters).forEach(function (key) {
       target[key] = filters[key];
