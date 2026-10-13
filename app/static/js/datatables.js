@@ -82,7 +82,7 @@
       },
       dom:
         "<'dt-toolbar flex flex-col gap-3 border-b border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between'<'dt-length'l><'dt-search'f>>" +
-        't' +
+        "<'dt-scroll' t>" +
         "<'dt-footer flex flex-col gap-3 border-t border-slate-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between'<'dt-info'i><'dt-pag'p>>",
       ajax: {
         url: settings.url,

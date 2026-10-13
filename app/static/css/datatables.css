@@ -1,7 +1,17 @@
 table.dataTable {
-  width: 100% !important;
+  width: auto !important;
+  min-width: 100%;
   margin: 0 !important;
   border-collapse: collapse;
+}
+
+.dt-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dt-scroll > table.dataTable {
+  margin: 0 !important;
 }
 
 table.dataTable thead th {
